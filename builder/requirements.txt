@@ -1,14 +1,25 @@
-runpod==1.4.2
-hf_transfer
-
-diffusers==0.21.4
-transformers==4.34.0
-accelerate==0.23.0
-safetensors==0.3.2
-scipy == 1.11.2
+# --extra-index-url https://download.pytorch.org/whl/cu118
+torch; sys_platform == "win32"
+whl/torch-2.4.1+cu118-cp311-cp311-linux_x86_64.whl; sys_platform != "win32"
+torch==2.4.1+cu118; sys_platform == "win32"
+whl/nvidia_cudnn_cu11-9.1.0.70-py3-none-manylinux2014_x86_64.whl; sys_platform != "win32"
+cudnn==9.1.0.70; sys_platform == "win32"
+--extra-index-url https://download.pytorch.org/whl/cu118
+triton>=2.0.0; sys_platform != "win32"
+runpod>=1.4.2
+hf_transfer>=0.1.4
+diffusers>=0.21.4
+transformers>=4.34.0
+accelerate>=0.23.0
+safetensors>=0.3.2
+scipy >= 1.11.2
 numpy>=1.26.1
 PyWavelets>=1.1.1
 opencv-python>=4.8.1.78
-invisible-watermark==0.2.0
-xformers==0.0.23
-torch --index-url https://download.pytorch.org/whl/cu118
+invisible-watermark>=0.2.0
+timm>=0.6.12
+einops>=0.6.0
+omegaconf>=2.3.0
+pytorch-lightning>=1.9.1
+albumentations>=1.2.1
+xformers

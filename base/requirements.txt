@@ -1,0 +1,26 @@
+whl/nvidia_cudnn_cu11-9.1.0.70-py3-none-manylinux2014_x86_64.whl; sys_platform != "win32"
+whl/nvidia_cublas_cu11-11.11.3.6-py3-none-manylinux2014_x86_64.whl; sys_platform != "win32"
+whl/torch-2.4.0+cu118-cp311-cp311-linux_x86_64.whl; sys_platform != "win32"
+whl/triton-3.0.0-1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl; sys_platform != "win32"
+--extra-index-url https://download.pytorch.org/whl/cu118
+triton==3.0.0; sys_platform != "win32"
+runpod==1.7.0
+hf_transfer==0.1.8
+diffusers==0.30.2
+transformers==4.44.2
+--extra-index-url https://download.pytorch.org/whl/cu118
+xformers==0.0.27.post2+cu118
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch==2.4.0; sys_platform != "win32"
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch==2.4.0+cu118; sys_platform == "win32"
+accelerate==0.34.2
+safetensors==0.4.5
+scipy==1.14.1
+numpy==1.26.4
+opencv-python==4.10.0.84
+PyWavelets==1.7.0
+omegaconf==2.3.0
+timm==1.0.9
+einops==0.8.0
+pytorch-lightning==2.4.0

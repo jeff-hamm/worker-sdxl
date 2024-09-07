@@ -1,15 +1,14 @@
+import argparse
 '''
 Contains the handler function that will be called by the serverless.
 '''
 
 import os
 import base64
-import concurrent.futures
 
 import torch
-from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, AutoencoderKL
 from diffusers.utils import load_image
-
+from controlnet import predict
 from diffusers import (
     PNDMScheduler,
     LMSDiscreteScheduler,
@@ -23,53 +22,8 @@ from runpod.serverless.utils import rp_upload, rp_cleanup
 from runpod.serverless.utils.rp_validator import validate
 
 from rp_schemas import INPUT_SCHEMA
-
+from ModelHandler import ModelHandler
 torch.cuda.empty_cache()
-
-# ------------------------------- Model Handler ------------------------------ #
-
-
-class ModelHandler:
-    def __init__(self):
-        self.base = None
-        self.refiner = None
-        self.load_models()
-
-    def load_base(self):
-        vae = AutoencoderKL.from_pretrained(
-            "madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
-        base_pipe = StableDiffusionXLPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", vae=vae,
-            torch_dtype=torch.float16, variant="fp16", use_safetensors=True, add_watermarker=False
-        )
-        base_pipe = base_pipe.to("cuda", silence_dtype_warnings=True)
-        base_pipe.enable_xformers_memory_efficient_attention()
-        return base_pipe
-
-    def load_refiner(self):
-        vae = AutoencoderKL.from_pretrained(
-            "madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
-        refiner_pipe = StableDiffusionXLImg2ImgPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-refiner-1.0", vae=vae,
-            torch_dtype=torch.float16, variant="fp16", use_safetensors=True, add_watermarker=False
-        )
-        refiner_pipe = refiner_pipe.to("cuda", silence_dtype_warnings=True)
-        refiner_pipe.enable_xformers_memory_efficient_attention()
-        return refiner_pipe
-
-    def load_models(self):
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_base = executor.submit(self.load_base)
-            future_refiner = executor.submit(self.load_refiner)
-
-            self.base = future_base.result()
-            self.refiner = future_refiner.result()
-
-
-MODELS = ModelHandler()
-
-# ---------------------------------- Helper ---------------------------------- #
-
 
 def _save_and_upload_images(images, job_id):
     os.makedirs(f"/{job_id}", exist_ok=True)
@@ -101,6 +55,24 @@ def make_scheduler(name, config):
     }[name]
 
 
+def get_image(image_url, image_base64):
+    '''
+    Get the image from the provided URL or base64 string.
+    Returns a PIL image.
+    '''
+    if image_url is not None:
+        image = rp_download.file(image_url)
+        image = image['file_path']
+
+    if image_base64 is not None:
+        image_bytes = base64.b64decode(image_base64)
+        image = BytesIO(image_bytes)
+
+    input_image = Image.open(image)
+    input_image = np.array(input_image)
+
+    return input_image
+
 @torch.inference_mode()
 def generate_image(job):
     '''
@@ -124,8 +96,12 @@ def generate_image(job):
 
     MODELS.base.scheduler = make_scheduler(
         job_input['scheduler'], MODELS.base.scheduler.config)
-
-    if starting_image:  # If image_url is provided, run only the refiner pipeline
+    job_input_controlnet = job_input['controlnet']
+    job_type=job_input['type'] or MODELS.type
+    if(job_type != MODELS.type):
+        MODELS.load_models(job_type)
+    
+    if job_type == "prompt" and starting_image:  # If image_url is provided, run only the refiner pipeline
         init_image = load_image(starting_image).convert("RGB")
         output = MODELS.refiner(
             prompt=job_input['prompt'],
@@ -135,12 +111,18 @@ def generate_image(job):
             generator=generator
         ).images
     else:
+        if starting_image:
+            job_input['image_url'] = None
+            job_input_controlnet['image_url'] = starting_image
+            starting_image = predict(job['controlnet'])
         # Generate latent image using pipe
-        image = MODELS.base(
+        output = MODELS.base(
             prompt=job_input['prompt'],
             negative_prompt=job_input['negative_prompt'],
             height=job_input['height'],
             width=job_input['width'],
+            controlnet_conditioning_scale=(job_input_controlnet and job_input_controlnet['conditioning_scale']) or 0.5, 
+            image=starting_image,
             num_inference_steps=job_input['num_inference_steps'],
             guidance_scale=job_input['guidance_scale'],
             denoising_end=job_input['high_noise_frac'],
@@ -150,14 +132,15 @@ def generate_image(job):
         ).images
 
         try:
-            output = MODELS.refiner(
-                prompt=job_input['prompt'],
-                num_inference_steps=job_input['refiner_inference_steps'],
-                strength=job_input['strength'],
-                image=image,
-                num_images_per_prompt=job_input['num_images'],
-                generator=generator
-            ).images
+            if(MODELS.refiner is not None):
+                output = MODELS.refiner(
+                    prompt=job_input['prompt'],
+                    num_inference_steps=job_input['refiner_inference_steps'],
+                    strength=job_input['strength'],
+                    image=output,
+                    num_images_per_prompt=job_input['num_images'],
+                    generator=generator
+                ).images
         except RuntimeError as err:
             return {
                 "error": f"RuntimeError: {err}, Stack Trace: {err.__traceback__}",
@@ -177,5 +160,20 @@ def generate_image(job):
 
     return results
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--input_type", type=str,
+                    default="controlnet", help="Model URL")
+parser.add_argument("--model_type", type=str,
+                    default=None, help="Model URL")
+
+args = parser.parse_args()
+print(args)
+INPUT_TYPE = args.input_type
+if(INPUT_TYPE is None):
+    INPUT_TYPE = "controlnet"
+MODELS = ModelHandler()
+MODELS.load_models(INPUT_TYPE)
 
 runpod.serverless.start({"handler": generate_image})
+
+

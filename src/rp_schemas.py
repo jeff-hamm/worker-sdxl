@@ -1,4 +1,23 @@
+from controlnet import CANNY_SCHEMA
+CONTROLNET_SCHEMA = CANNY_SCHEMA.copy()
+CONTROLNET_SCHEMA['conditioning_scale'] = {
+    'type': float,
+    'required': False,
+    'default': 0.5
+}
+CONTROLNET_SCHEMA['image_resolution']['default'] = 768
+CONTROLNET_SCHEMA['model'] = {
+    'type': str,
+    'required': False,
+    'default': 'canny'
+}
+
 INPUT_SCHEMA = {
+    'type': {
+        type: str,
+        'required':False,
+        'default': 'controlnet',
+    },
     'prompt': {
         'type': str,
         'required': False,
@@ -64,4 +83,5 @@ INPUT_SCHEMA = {
         'required': False,
         'default': None
     },
+    'controlnet': CONTROLNET_SCHEMA,
 }
