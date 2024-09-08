@@ -13,10 +13,10 @@ CONTROLNET_SCHEMA['model'] = {
 }
 
 INPUT_SCHEMA = {
-    'type': {
-        type: str,
+    'model_type': {
+        'type': str,
         'required':False,
-        'default': 'controlnet',
+        'default': 'canny_img2img',
     },
     'prompt': {
         'type': str,
@@ -81,7 +81,24 @@ INPUT_SCHEMA = {
     'high_noise_frac': {
         'type': float,
         'required': False,
-        'default': None
+        'default': 0.8
     },
-    'controlnet': CONTROLNET_SCHEMA,
+    'controlnet_type': {
+        'type': str,
+        'required': False,
+        'default': "canny"
+    },
+    'controlnet_image_resolution': {
+        'type': int,
+        'required': False,
+        'default': 768
+    },
+    "controlnet_conditioning_scale": {
+        'type': float,
+        'required': False,
+        'default': 0.5
+    },
+    'controlnet_low_threshold': {'type': int, 'required': False, 'default': 100, 'constraints': lambda threshold: 1 < threshold < 255},
+    'controlnet_high_threshold': {'type': int, 'required': False, 'default': 200, 'constraints': lambda threshold: 1 < threshold < 255},
+    'controlnet_image_url': {'type': str, 'required': False, 'default': None},
 }

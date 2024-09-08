@@ -5,9 +5,7 @@ Contains the handler function that will be called by the serverless.
 
 import os
 import base64
-
 import torch
-from diffusers.utils import load_image
 from controlnet import predict
 from diffusers import (
     PNDMScheduler,
@@ -16,7 +14,7 @@ from diffusers import (
     EulerDiscreteScheduler,
     DPMSolverMultistepScheduler,
 )
-
+from controlnet.utils import get_image_from_url
 import runpod
 from runpod.serverless.utils import rp_upload, rp_cleanup
 from runpod.serverless.utils.rp_validator import validate
@@ -41,7 +39,7 @@ def _save_and_upload_images(images, job_id):
                     image_file.read()).decode("utf-8")
                 image_urls.append(f"data:image/png;base64,{image_data}")
 
-    rp_cleanup.clean([f"/{job_id}"])
+#    rp_cleanup.clean([f"/{job_id}"])
     return image_urls
 
 
@@ -54,24 +52,6 @@ def make_scheduler(name, config):
         "DPMSolverMultistep": DPMSolverMultistepScheduler.from_config(config),
     }[name]
 
-
-def get_image(image_url, image_base64):
-    '''
-    Get the image from the provided URL or base64 string.
-    Returns a PIL image.
-    '''
-    if image_url is not None:
-        image = rp_download.file(image_url)
-        image = image['file_path']
-
-    if image_base64 is not None:
-        image_bytes = base64.b64decode(image_base64)
-        image = BytesIO(image_bytes)
-
-    input_image = Image.open(image)
-    input_image = np.array(input_image)
-
-    return input_image
 
 @torch.inference_mode()
 def generate_image(job):
@@ -96,43 +76,52 @@ def generate_image(job):
 
     MODELS.base.scheduler = make_scheduler(
         job_input['scheduler'], MODELS.base.scheduler.config)
-    job_input_controlnet = job_input['controlnet']
-    job_type=job_input['type'] or MODELS.type
-    if(job_type != MODELS.type):
+    job_type=job_input['model_type'] or MODELS.type
+    if(job_type and job_type != MODELS.type):
         MODELS.load_models(job_type)
-    
-    if job_type == "prompt" and starting_image:  # If image_url is provided, run only the refiner pipeline
-        init_image = load_image(starting_image).convert("RGB")
-        output = MODELS.refiner(
-            prompt=job_input['prompt'],
-            num_inference_steps=job_input['refiner_inference_steps'],
-            strength=job_input['strength'],
-            image=init_image,
-            generator=generator
-        ).images
-    else:
+    try:
+        additional_args = {}
         if starting_image:
-            job_input['image_url'] = None
-            job_input_controlnet['image_url'] = starting_image
-            starting_image = predict(job['controlnet'])
+            if(job_input['controlnet_type']):
+                additional_args['conditioning_scale']=job_input['controlnet_conditioning_scale'] or 0.5
+                if(job_type == "canny_text2img"):
+                    job_input['image_url'] = None
+                print ("Running controlnet")
+                controlnet_args = {
+                    "model_type": job_input['controlnet_type'],
+                    "image_url": starting_image,
+                    "image_resolution": job_input['controlnet_image_resolution'],
+                    "low_threshold": job_input['controlnet_low_threshold'],
+                    "high_threshold": job_input['controlnet_high_threshold'],
+                }
+                print("Controlnet args",controlnet_args)
+                canny_output = predict({"input":controlnet_args,"id":job['id']})
+                if(job_type.find("img2img")>=0):
+                    additional_args['control_image'] = canny_output 
+                    additional_args['image'] = get_image_from_url(starting_image)
+                else:
+                    additional_args['image'] = canny_output
         # Generate latent image using pipe
+        if(MODELS.refiner is not None):
+            additional_args['denoising_end']=job_input['high_noise_frac'],
+            # additional_args['output_type']="latent",
+        print ("Running base model with", additional_args)
         output = MODELS.base(
             prompt=job_input['prompt'],
             negative_prompt=job_input['negative_prompt'],
             height=job_input['height'],
             width=job_input['width'],
-            controlnet_conditioning_scale=(job_input_controlnet and job_input_controlnet['conditioning_scale']) or 0.5, 
-            image=starting_image,
             num_inference_steps=job_input['num_inference_steps'],
             guidance_scale=job_input['guidance_scale'],
-            denoising_end=job_input['high_noise_frac'],
-            output_type="latent",
             num_images_per_prompt=job_input['num_images'],
-            generator=generator
+            generator=generator,
+            output_type= 'pil' if MODELS.refiner is None  else 'latent',
+            **additional_args
         ).images
-
-        try:
+        print("Got base output length",len(output))
+        if(len(output)>0):
             if(MODELS.refiner is not None):
+                print ("Running refiner")
                 output = MODELS.refiner(
                     prompt=job_input['prompt'],
                     num_inference_steps=job_input['refiner_inference_steps'],
@@ -141,17 +130,25 @@ def generate_image(job):
                     num_images_per_prompt=job_input['num_images'],
                     generator=generator
                 ).images
-        except RuntimeError as err:
+                print("Got retfiner output length",len(output), type(output))
+        else:
             return {
-                "error": f"RuntimeError: {err}, Stack Trace: {err.__traceback__}",
-                "refresh_worker": True
+                "error": "No output from base model",
+                "refresh_worker": False
             }
 
-    image_urls = _save_and_upload_images(output, job['id'])
+    except RuntimeError as err:
+        return {
+            "error": f"RuntimeError: {err}, Stack Trace: {err.__traceback__}",
+            "refresh_worker": True
+        }
+    if(output and len(output)>0):
+        print("Saving output ", type(output[0]))
+        image_urls = _save_and_upload_images(output, job['id'])
 
     results = {
         "images": image_urls,
-        "image_url": image_urls[0],
+        # "image_url": image_urls[0],
         "seed": job_input['seed']
     }
 
@@ -161,16 +158,16 @@ def generate_image(job):
     return results
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--input_type", type=str,
-                    default="controlnet", help="Model URL")
+parser.add_argument("--model_name", type=str,
+                    default="canny_img2img", help="Model URL")
 parser.add_argument("--model_type", type=str,
                     default=None, help="Model URL")
 
 args = parser.parse_args()
 print(args)
-INPUT_TYPE = args.input_type
+INPUT_TYPE = args.model_name
 if(INPUT_TYPE is None):
-    INPUT_TYPE = "controlnet"
+    INPUT_TYPE = "canny_img2img"
 MODELS = ModelHandler()
 MODELS.load_models(INPUT_TYPE)
 

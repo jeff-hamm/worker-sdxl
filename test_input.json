@@ -1,0 +1,9 @@
+{
+    "input":{
+        "prompt": "Hello World",
+        "model_type": "canny_img2img",
+        "controlnet_type": "canny",
+        "image_url": "/0.png"
+
+    }
+}

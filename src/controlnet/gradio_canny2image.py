@@ -1,32 +1,32 @@
-from annotator.canny import apply_canny
-from annotator.util import resize_image, HWC3
+from .utils import resize_image, HWC3
 from pytorch_lightning import seed_everything
 import einops
 import numpy as np
 import torch
+import cv2
 
 from cldm.hack import disable_verbosity
 disable_verbosity()
 
+# def process_canny2(input_image, prompt, a_prompt, n_prompt, num_samples, image_resolution, ddim_steps, scale, seed, eta, low_threshold, high_threshold, model, ddim_sampler):
+#     controlnet_img = cv2.imread(input_image)
+#     height, width, _  = controlnet_img.shape
+#     ratio = np.sqrt(1024. * 1024. / (width * height))
+#     new_width, new_height = int(width * ratio), int(height * ratio)
+#     controlnet_img = cv2.resize(controlnet_img, (new_width, new_height))
+
+#     controlnet_img = cv2.Canny(controlnet_img, low_threshold, high_threshold)
+#     controlnet_img = HWC3(controlnet_img)
+#     controlnet_img = Image.fromarray(controlnet_img)
+
 def process_canny(input_image, prompt, a_prompt, n_prompt, num_samples, image_resolution, ddim_steps, scale, seed, eta, low_threshold, high_threshold, model, ddim_sampler):
-    controlnet_img = cv2.imread(input_image)
-    height, width, _  = controlnet_img.shape
-    ratio = np.sqrt(1024. * 1024. / (width * height))
-    new_width, new_height = int(width * ratio), int(height * ratio)
-    controlnet_img = cv2.resize(controlnet_img, (new_width, new_height))
-
-    controlnet_img = cv2.Canny(controlnet_img, 100, 200)
-    controlnet_img = HWC3(controlnet_img)
-    controlnet_img = Image.fromarray(controlnet_img)
-
-def process_canny2(input_image, prompt, a_prompt, n_prompt, num_samples, image_resolution, ddim_steps, scale, seed, eta, low_threshold, high_threshold, model, ddim_sampler):
     with torch.no_grad():
         img = resize_image(HWC3(input_image), image_resolution)
         H, W, C = img.shape
 
-        detected_map = apply_canny(img, low_threshold, high_threshold)
+        detected_map = cv2.Canny(img, low_threshold, high_threshold)
         detected_map = HWC3(detected_map)
-    return detected_map
+    return [detected_map]
         # control = torch.from_numpy(detected_map.copy()).float().cuda() / 255.0
         # control = torch.stack([control for _ in range(num_samples)], dim=0)
         # control = einops.rearrange(control, 'b h w c -> b c h w').clone()

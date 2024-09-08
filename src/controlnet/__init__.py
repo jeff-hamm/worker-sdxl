@@ -7,10 +7,11 @@ import base64
 import argparse
 from io import BytesIO
 from subprocess import call
-
+import torch
 from PIL import Image
 import numpy as np
-
+from controlnet.gradio_canny2image import process_canny
+from .utils import get_image_from_url
 import runpod
 from runpod.serverless.utils import rp_download, rp_upload
 from runpod.serverless.utils.rp_validator import validate
@@ -23,6 +24,7 @@ from .utils import get_state_dict_path, download_model, model_dl_urls, annotator
 #                                    Schemas                                   #
 # ---------------------------------------------------------------------------- #
 BASE_SCHEMA = {
+    'model_type': {'type': str, 'required': False, 'default': 'canny'},
     'image_url': {'type': str, 'required': False, 'default': None},
     'image_base64': {'type': str, 'required': False, 'default': None},
     'prompt': {'type': str, 'required': False, 'default': None},
@@ -79,8 +81,7 @@ def get_image(image_url, image_base64):
     Returns a PIL image.
     '''
     if image_url is not None:
-        image = rp_download.file(image_url)
-        image = image['file_path']
+        return get_image_from_url(image_url)
 
     if image_base64 is not None:
         image_bytes = base64.b64decode(image_base64)
@@ -90,6 +91,24 @@ def get_image(image_url, image_base64):
     input_image = np.array(input_image)
 
     return input_image
+
+def import_model(MODEL_TYPE):
+    if MODEL_TYPE == "canny":
+        from controlnet.gradio_canny2image import process_canny
+    elif MODEL_TYPE == "depth":
+        from gradio_depth2image import process_depth
+    elif MODEL_TYPE == "hed":
+        from gradio_hed2image import process_hed
+    elif MODEL_TYPE == "normal":
+        from gradio_normal2image import process_normal
+    elif MODEL_TYPE == "mlsd":
+        from gradio_hough2image import process_mlsd
+    elif MODEL_TYPE == "scribble":
+        from gradio_scribble2image import process_scribble
+    elif MODEL_TYPE == "seg":
+        from gradio_seg2image import process_seg
+    elif MODEL_TYPE == "openpose":
+        from gradio_pose2image import process_pose
 
 
 def predict(job):
@@ -110,7 +129,8 @@ def predict(job):
     # ---------------------------------------------------------------------------- #
     #                                     Nets                                     #
     # ---------------------------------------------------------------------------- #
-
+    MODEL_TYPE = job_input['model_type'] or 'canny'
+    import_model(MODEL_TYPE)
     # ----------------------------------- Canny ---------------------------------- #
     if MODEL_TYPE == "canny":
         canny_validate = validate(job_input, CANNY_SCHEMA)
@@ -298,52 +318,56 @@ def predict(job):
             ddim_sampler,
         )
 
+
     # outputs from list to PIL
     outputs = [Image.fromarray(output) for output in outputs]
 
+    print(f"Canny Outputs: {outputs}, {len(outputs)}")
     # save outputs to file
     os.makedirs("tmp", exist_ok=True)
-    outputs = [output.save(f"tmp/output_{i}.png") for i, output in enumerate(outputs)]
+    outputPaths = [output.save(f"tmp/output_{i}.png") for i, output in enumerate(outputs)]
 
-    for index, output in enumerate(outputs):
-        outputs = rp_upload.upload_image(job['id'], f"tmp/output_{index}.png")
+    for index, output in enumerate(outputPaths):
+        outputPaths = rp_upload.upload_image(job['id'], f"tmp/output_{index}.png")
 
-    # return paths to output files
+    # return pil images
     return outputs
 
 
 # ---------------------------------------------------------------------------- #
 #                                     Main                                     #
 # ---------------------------------------------------------------------------- #
-parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--model_type", type=str,
-                    default=None, help="Model URL")
-
 if __name__ == "__main__" or __name__ == "__init__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model_type", type=str,
+                        default=None, help="Model URL")
+
     args = parser.parse_args()
     print(args)
     MODEL_TYPE = args.MODEL_TYPE
-    if(MODEL_TYPE == None):
-        MODEL_TYPE = "canny"
-    if MODEL_TYPE == "canny":
-        from gradio_canny2image import process_canny
-    elif MODEL_TYPE == "depth":
-        from gradio_depth2image import process_depth
-    elif MODEL_TYPE == "hed":
-        from gradio_hed2image import process_hed
-    elif MODEL_TYPE == "normal":
-        from gradio_normal2image import process_normal
-    elif MODEL_TYPE == "mlsd":
-        from gradio_hough2image import process_mlsd
-    elif MODEL_TYPE == "scribble":
-        from gradio_scribble2image import process_scribble
-    elif MODEL_TYPE == "seg":
-        from gradio_seg2image import process_seg
-    elif MODEL_TYPE == "openpose":
-        from gradio_pose2image import process_pose
+else:
+    MODEL_TYPE = "canny"
 
-    model = create_model('./models/cldm_v15.yaml').cuda()
-    model.load_state_dict(load_state_dict(get_state_dict_path(MODEL_TYPE), location='cuda'))
-    ddim_sampler = DDIMSampler(model)
-    if __name__ == "__main__":
-        runpod.serverless.start({"handler": predict})
+if MODEL_TYPE == "canny":
+    from controlnet.gradio_canny2image import process_canny
+elif MODEL_TYPE == "depth":
+    from gradio_depth2image import process_depth
+elif MODEL_TYPE == "hed":
+    from gradio_hed2image import process_hed
+elif MODEL_TYPE == "normal":
+    from gradio_normal2image import process_normal
+elif MODEL_TYPE == "mlsd":
+    from gradio_hough2image import process_mlsd
+elif MODEL_TYPE == "scribble":
+    from gradio_scribble2image import process_scribble
+elif MODEL_TYPE == "seg":
+    from gradio_seg2image import process_seg
+elif MODEL_TYPE == "openpose":
+    from gradio_pose2image import process_pose
+model = None
+ddim_sampler = None
+#model = create_model('./models/cldm_v15.yaml').cuda()
+#model.load_state_dict(load_state_dict(get_state_dict_path(MODEL_TYPE), location='cuda'))
+#ddim_sampler = DDIMSampler(model)
+if __name__ == "__main__":
+    runpod.serverless.start({"handler": predict})
