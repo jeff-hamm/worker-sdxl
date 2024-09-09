@@ -6,6 +6,7 @@ Contains the handler function that will be called by the serverless.
 import os
 import base64
 import torch
+from config   import diffusers_config
 from controlnet import predict
 from diffusers import (
     PNDMScheduler,
@@ -24,10 +25,10 @@ from ModelHandler import ModelHandler
 torch.cuda.empty_cache()
 
 def _save_and_upload_images(images, job_id):
-    os.makedirs(f"/{job_id}", exist_ok=True)
+    os.makedirs(f"tmp/{job_id}", exist_ok=True)
     image_urls = []
     for index, image in enumerate(images):
-        image_path = os.path.join(f"/{job_id}", f"{index}.png")
+        image_path = os.path.join(f"tmp/{job_id}/", f"{index}.png")
         image.save(image_path)
 
         if os.environ.get('BUCKET_ENDPOINT_URL', False):
@@ -39,7 +40,8 @@ def _save_and_upload_images(images, job_id):
                     image_file.read()).decode("utf-8")
                 image_urls.append(f"data:image/png;base64,{image_data}")
 
-#    rp_cleanup.clean([f"/{job_id}"])
+    if(not diffusers_config["save_to_disk"]):
+        rp_cleanup.clean([f"tmp/{job_id}/"])
     return image_urls
 
 
@@ -79,6 +81,7 @@ def generate_image(job):
     job_type=job_input['model_type'] or MODELS.type
     if(job_type and job_type != MODELS.type):
         MODELS.load_models(job_type)
+    use_refiner =  job_input['use_refiner'] and MODELS.refiner is not None
     try:
         additional_args = {}
         if starting_image:
@@ -96,31 +99,33 @@ def generate_image(job):
                 }
                 print("Controlnet args",controlnet_args)
                 canny_output = predict({"input":controlnet_args,"id":job['id']})
-                if(job_type.find("img2img")>=0):
-                    additional_args['control_image'] = canny_output 
-                    additional_args['image'] = get_image_from_url(starting_image)
-                else:
-                    additional_args['image'] = canny_output
+#                if(job_type.find("img2img")>=0):
+#                    additional_args['control_image'] = canny_output 
+#                    additional_args['image'] = get_image_from_url(starting_image)
+#                else:
+#                    additional_args['image'] = canny_output
         # Generate latent image using pipe
-        if(MODELS.refiner is not None):
+        if(use_refiner):
             additional_args['denoising_end']=job_input['high_noise_frac'],
-            # additional_args['output_type']="latent",
+            
         print ("Running base model with", additional_args)
         output = MODELS.base(
             prompt=job_input['prompt'],
             negative_prompt=job_input['negative_prompt'],
             height=job_input['height'],
             width=job_input['width'],
+            control_image=canny_output if job_type.find("img2img")>=0 else None,
+            image= canny_output if job_type.find("img2img")<0 else get_image_from_url(starting_image),
             num_inference_steps=job_input['num_inference_steps'],
             guidance_scale=job_input['guidance_scale'],
             num_images_per_prompt=job_input['num_images'],
             generator=generator,
-            output_type= 'pil' if MODELS.refiner is None  else 'latent',
+            output_type= 'pil' if not use_refiner  else 'latent',
             **additional_args
         ).images
         print("Got base output length",len(output))
         if(len(output)>0):
-            if(MODELS.refiner is not None):
+            if(use_refiner):
                 print ("Running refiner")
                 output = MODELS.refiner(
                     prompt=job_input['prompt'],
@@ -142,7 +147,7 @@ def generate_image(job):
             "error": f"RuntimeError: {err}, Stack Trace: {err.__traceback__}",
             "refresh_worker": True
         }
-    if(output and len(output)>0):
+    if(len(output)>0):
         print("Saving output ", type(output[0]))
         image_urls = _save_and_upload_images(output, job['id'])
 
@@ -152,8 +157,8 @@ def generate_image(job):
         "seed": job_input['seed']
     }
 
-    if starting_image:
-        results['refresh_worker'] = True
+    # if starting_image:
+    #     results['refresh_worker'] = True
 
     return results
 

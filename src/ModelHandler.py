@@ -21,11 +21,18 @@ class ModelHandler:
         
     def load_model_vae(self):
         print(f"loading vae {diffusers_config['vae']}")
-        if(self.vae is None):
-            self.vae = AutoencoderKL.from_pretrained(diffusers_config['vae'], 
-                torch_dtype=torch.float16,
-                use_safetensors=True)
-        return self.vae
+#         if(self.vae is None):
+# #            AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
+#             self.vae = AutoencoderKL.from_pretrained(diffusers_config['vae'], 
+#                                                      torch_dtype=torch.float16,
+# #                torch_dtype=torch.float16,
+# #                use_safetensors=True
+#                 )
+        return AutoencoderKL.from_pretrained(diffusers_config['vae'], 
+                                                     torch_dtype=torch.float16,
+#                torch_dtype=torch.float16,
+               use_safetensors=True
+                )
 
     def load_model_canny(self):
         if(self.canny is None):
@@ -37,6 +44,8 @@ class ModelHandler:
         print(f"loading {name}")
         if(vae):
             kwargs["vae"] = self.load_model_vae()
+        else:
+            print("No VAE for ",name)
         pipe = pipeLineClass.from_pretrained(model or diffusers_config[name],
                                               **kwargs, **diffusers_config['common_args'])
         if(not loadOnly and not self.load_only and torch.cuda.is_available()):
@@ -44,7 +53,7 @@ class ModelHandler:
             if(self.low_memory):
                 pipe.enable_model_cpu_offload()
             else:
-                pipe=pipe.to("cuda", silence_dtype_warnings=True)
+                pipe=pipe.to("cuda")
         return pipe
     
     def load_model_text2img(self,**kwargs):

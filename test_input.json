@@ -1,9 +1,11 @@
 {
-    "input":{
-        "prompt": "Hello World",
-        "model_type": "canny_img2img",
-        "controlnet_type": "canny",
-        "image_url": "/0.png"
-
+    "input": {
+      "image_id": "7141cbf6-491e-471d-b9f3-d3688d46e154",
+      "prompt": "A photo booth in a mystical forest",
+      "image_url": "/0.png",      
+      "negative_prompt": "",
+      "model_type": "canny_text2img",
+      "use_refiner": false,
+      "controlnet_type": "canny"
     }
-}
+  }

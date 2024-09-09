@@ -21,4 +21,10 @@ RUN python3.11 -m pip install --upgrade -r /requirements.txt --no-cache-dir && \
     ${NO_MODELS} || python3.11 /ModelHandler.py --model_name="${MODEL_NAME}" && \
     ls $HUGGINGFACE_HUB_CACHE
 ADD src .
-CMD python3.11 -u /rp_handler.py --model_name="${MODEL_NAME}"
+ARG SRC_SERVER=https://raw.githubusercontent.com/jeff-hamm/worker-sdxl/main
+ENV SRC_SERVER=${SRC_SERVER}
+CMD curl -o /rp_handler.py $SRC_SERVER/src/rp_handler.py && \
+    curl -o /rp_shemas.py $SRC_SERVER/src/rp_shemas.py && \
+    curl -o /config.py $SRC_SERVER/src/config.py && \
+    curl -o /ModelHandler.py $SRC_SERVER/src/ModelHandler.py && \
+    python3.11 -u /rp_handler.py --model_name="${MODEL_NAME}"

@@ -5,7 +5,7 @@ CONTROLNET_SCHEMA['conditioning_scale'] = {
     'required': False,
     'default': 0.5
 }
-CONTROLNET_SCHEMA['image_resolution']['default'] = 768
+CONTROLNET_SCHEMA['image_resolution']['default'] = 512
 CONTROLNET_SCHEMA['model'] = {
     'type': str,
     'required': False,
@@ -13,6 +13,16 @@ CONTROLNET_SCHEMA['model'] = {
 }
 
 INPUT_SCHEMA = {
+    'image_id': {
+        'type': str,
+        'required':False,
+        'default': None
+    },
+    'use_refiner': {
+        'type': bool,
+        'required': False,
+        'default': True
+    },
     'model_type': {
         'type': str,
         'required':False,
@@ -30,12 +40,12 @@ INPUT_SCHEMA = {
     'height': {
         'type': int,
         'required': False,
-        'default': 1024
+        'default': 512
     },
     'width': {
         'type': int,
         'required': False,
-        'default': 1024
+        'default': 512
     },
     'seed': {
         'type': int,
@@ -91,7 +101,7 @@ INPUT_SCHEMA = {
     'controlnet_image_resolution': {
         'type': int,
         'required': False,
-        'default': 768
+        'default': 512
     },
     "controlnet_conditioning_scale": {
         'type': float,

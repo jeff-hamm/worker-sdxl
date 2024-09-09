@@ -57,8 +57,11 @@ def get_image_from_url(image):
     if image.startswith("http://") or image.startswith("https://") or os.path.isfile(image):
         image = load_image(image).convert("RGB")
         return np.array(image)
-    elif image.startswith("data:image/png;base64,"):
-        image = image.substring(image.index(",")+1)
+    elif image.startswith("data:"): 
+        print ("Found dataUrlString")
+        image = image.split(",")[1]
+    else:
+        print("No dataUrl prefix found. Attempting to decode")
     image_bytes = base64.b64decode(image)
     image = BytesIO(image_bytes)
     input_image = PIL.Image.open(image).convert("RGB")

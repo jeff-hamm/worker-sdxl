@@ -18,7 +18,8 @@ diffusers_config = {
         "use_safetensors": True,
         'variant':"fp16"
     },
-    'use_refiner': True
+    'use_refiner': True,
+    'save_to_disk': True
 }
 for key in diffusers_config:
     envValue = os.environ.get("diffusers__" + key)
