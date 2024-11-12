@@ -81,7 +81,8 @@ def get_image(image_url, image_base64):
     Returns a PIL image.
     '''
     if image_url is not None:
-        return get_image_from_url(image_url)
+        (np,pil) = get_image_from_url(image_url)
+        return np
 
     if image_base64 is not None:
         image_bytes = base64.b64decode(image_base64)

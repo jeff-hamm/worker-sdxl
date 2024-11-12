@@ -21,12 +21,12 @@ INPUT_SCHEMA = {
     'use_refiner': {
         'type': bool,
         'required': False,
-        'default': True
+        'default': None
     },
     'model_type': {
         'type': str,
         'required':False,
-        'default': 'canny_img2img',
+        'default': None,
     },
     'prompt': {
         'type': str,
@@ -40,12 +40,12 @@ INPUT_SCHEMA = {
     'height': {
         'type': int,
         'required': False,
-        'default': 512
+        'default': 0
     },
     'width': {
         'type': int,
         'required': False,
-        'default': 512
+        'default': 0
     },
     'seed': {
         'type': int,
@@ -55,22 +55,22 @@ INPUT_SCHEMA = {
     'scheduler': {
         'type': str,
         'required': False,
-        'default': 'DDIM'
+        'default': None
     },
     'num_inference_steps': {
         'type': int,
         'required': False,
-        'default': 25
+        'default': 12
     },
     'refiner_inference_steps': {
         'type': int,
         'required': False,
-        'default': 50
+        'default': None
     },
     'guidance_scale': {
         'type': float,
         'required': False,
-        'default': 7.5
+        'default': 4.0
     },
     'strength': {
         'type': float,
@@ -96,17 +96,17 @@ INPUT_SCHEMA = {
     'controlnet_type': {
         'type': str,
         'required': False,
-        'default': "canny"
+        'default': None
     },
     'controlnet_image_resolution': {
         'type': int,
         'required': False,
-        'default': 512
+        'default': None
     },
     "controlnet_conditioning_scale": {
         'type': float,
         'required': False,
-        'default': 0.5
+        'default': 0.7
     },
     'controlnet_low_threshold': {'type': int, 'required': False, 'default': 100, 'constraints': lambda threshold: 1 < threshold < 255},
     'controlnet_high_threshold': {'type': int, 'required': False, 'default': 200, 'constraints': lambda threshold: 1 < threshold < 255},

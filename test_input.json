@@ -1,11 +1,9 @@
 {
     "input": {
-      "image_id": "7141cbf6-491e-471d-b9f3-d3688d46e154",
       "prompt": "A photo booth in a mystical forest",
-      "image_url": "/0.png",      
       "negative_prompt": "",
-      "model_type": "canny_text2img",
       "use_refiner": false,
-      "controlnet_type": "canny"
+      "model_type": "cosxledit",
+      "image_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADgAAABVCAMAAAArMteoAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAABhQTFRF/f39RklLr6+v3d3dfd3+Z6rAcHV3Nzc3Ry55RQAAAAh0Uk5T/////////wDeg71ZAAACLklEQVR42tSW22LlIAhFASv5/z+uF4LGG9h5Gl7anLjCBgWEZzBEjskY8TkaDFj8UYvoBnvMQnuQfyZjBzi6M5w2sHE5Oe3BAl+dKZ/FP8ez2hdEWdYpW/y0AOMiIok6nkBcfhwPLqF3OK3AvUs4L4hblz24yB8bYP8emUIg4vMXBYxNKQaoRji8OYPKCekGOROc5Ka/fAOGuv55Ekk2qMnJSmuOkutgJwcVTMtnEO0DMILWAZBQcAQxGkeuutyBaJXVBoxmIW9ANFvHGmS7WS3B6GiPK9DRHtPaGWTnCJhA/9AZTs7/AgJlY7wHxfivIPBtjJwtvP98NdvJQXUc+A4MS80+jyW9WTNm83usPxXXIVkZDxdgbrWtyfukNjA5LHnCLYi1kw8e001NxsMWfHTfWEZeAXU87MHZFMxh/BuIKusI4lspAnLZH7lQncCPLtAyKAP4AszbFKg4xSuQylKkSl6A7+wuivkPYCXpSirJCamF5wVZz7CUrDurQV1qivz7yB3pBp/PYi0FB9iL9ZmAH7Eu0+rwRfapr1rIpQNegEFbx53Y0r5AnYerEPVKduOynFJoD+DMD5a6gO6JLkLsrmRusbXHQ6/ct5m1S8JHOrmV9kPHKVamEXw1OMRKy4Ahz+TbjGGwesSyyIJRhiX2bW4wZYxcSsdRztbJ08EOc6kdxWobhsUX2aF0Ao38sL6F1TcJd9YGBizDPxnvwO4CtTTcgkjhYG/mfgUYAIPOZqKpW0DKAAAAAElFTkSuQmCC"
     }
   }

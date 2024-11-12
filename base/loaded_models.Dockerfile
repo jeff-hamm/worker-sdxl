@@ -17,17 +17,21 @@ FROM jumpmyman/sdxl_gen:cached_models AS cached_files
 FROM jumpmyman/sdxl_gen:base AS model_loader
 ENV HF_HOME="/huggingface/"
 ENV HUGGINGFACE_HUB_CACHE="/huggingface/hub/"
-COPY src/config.py /config.py
-COPY src/ModelHandler.py /ModelHandler.py
+COPY src/*.py /
+COPY src/prompt_generator/. /prompt_generator/.
 ARG FILE=models--madebyollin--sdxl-vae-fp16-fix
 COPY --from=cached_files /huggingface/hub/${FILE}* /huggingface/hub/${FILE}
-RUN python3.11 /ModelHandler.py --model_name "vae"
+RUN python3.11 -u /ModelHandler.py --model_name "vae"
 
 FROM model_loader AS model_loader_base
 ARG FILE=models--stabilityai--stable-diffusion-xl-base-1.0
 COPY --from=cached_files /huggingface/hub/${FILE}* /huggingface/hub/${FILE}
-RUN python3.11 /ModelHandler.py --model_name "text2img"
+RUN python3.11 -u /ModelHandler.py --model_name "text2img"
 
+# FROM model_loader AS model_loader_pix2pix
+# ARG FILE=timbrooks/instruct-pix2pix
+# COPY --from=cached_files /huggingface/hub/${FILE}* /huggingface/hub/${FILE}
+# RUN python3.11 /ModelHandler.py --model_name "img2img_pix2pix"
 
 FROM model_loader AS model_loader_turbo
 ARG FILE=models--stabilityai--sdxl-turbo
@@ -42,16 +46,19 @@ FROM ${BASE_MODEL_NAME} AS model_loader_refiner_false
 FROM ${BASE_MODEL_NAME} AS model_loader_refiner_true
 ARG FILE=models--stabilityai--stable-diffusion-xl-refiner-1.0
 COPY --from=cached_files /huggingface/hub/${FILE}* /huggingface/hub/${FILE}
-RUN python3.11 /ModelHandler.py --model_name "refiner"
+RUN python3.11 -u /ModelHandler.py --model_name "refiner"
 
 FROM model_loader_refiner_${REFINER} AS model_loader_canny_false
 
 FROM model_loader_refiner_${REFINER} AS model_loader_canny_base
 ARG FILE=models--diffusers--controlnet-canny-sdxl-1.0
 COPY --from=cached_files /huggingface/hub/${FILE}* /huggingface/hub/${FILE}
-RUN python3.11 /ModelHandler.py --model_name "canny"
+RUN python3.11 -u /ModelHandler.py --model_name "canny"
 FROM  model_loader_refiner_${REFINER} AS model_loader_canny_lora
 #COPY --from=cached_files /huggingface/hub/*canny-sdxl-1.0 /huggingface/hub/
-RUN python3.11 /ModelHandler.py --model_name "canny_lora"
+RUN python3.11 -u /ModelHandler.py --model_name "canny_lora"
 
 FROM model_loader_canny_${CANNY} AS model_loader_final
+#COPY --from=model_loader_pxi2pix /huggingface/hub/. /huggingface/hub/
+#COPY --from=cached_files /huggingface/hub/${FILE}* /huggingface/hub/${FILE}
+COPY --from=cached_files /huggingface/hub/*.safetensors /huggingface/hub/

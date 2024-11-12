@@ -3,7 +3,8 @@ param([string]$Name="jumpmyman/sdxl_gen",$Version="latest",$BaseVersion="0.4.2",
     [switch]$NoBase,
     [switch]$NoRefiner,
     [switch]$NoCanny,
-    [switch]$Worker)
+    [switch]$Worker,
+    [string]$PipelineName)
 pushd "$PSScriptRoot"
 try {
     if($Cache) {
@@ -39,6 +40,9 @@ try {
         $BuildArgs = @("--build-arg","BASE_LABEL=$BaseVersion", "--build-arg","MODELS_LABEL=$ModelsLabel");
         if($ModelsLabel -eq "loaded_models_none") {
             $BuildArgs += @('--build-arg','NO_MODELS=true')
+        }
+        if($PipelineName) {
+            $BuildArgs += @("--build-arg","MODEL_NAME=$PipelineName")
         }
         docker image build @BuildArgs -t ${Name}:${BaseVersion}-${Version} -t ${Name}:latest -t ${Name}:${Version} "../"
     }

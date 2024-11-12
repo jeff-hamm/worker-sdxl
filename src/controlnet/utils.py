@@ -64,9 +64,9 @@ def get_image_from_url(image):
         print("No dataUrl prefix found. Attempting to decode")
     image_bytes = base64.b64decode(image)
     image = BytesIO(image_bytes)
-    input_image = PIL.Image.open(image).convert("RGB")
-    input_image = np.array(input_image)
-    return input_image
+    input_image_pil = PIL.Image.open(image).convert("RGB")
+    input_image = np.array(input_image_pil)
+    return (input_image,input_image_pil)
 
 
 annotator_ckpts_path = os.path.join(os.path.dirname(__file__), 'ckpts')
